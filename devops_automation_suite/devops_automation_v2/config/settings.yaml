@@ -1,0 +1,66 @@
+# ============================================================
+# DevOps Automation Suite — Configuration
+# ============================================================
+# Fill in your values before first run.
+# All secrets should use environment variables (see README).
+
+github:
+  base_url: "https://your-github-enterprise-hostname/api/v3"   # e.g. https://github.mycompany.com/api/v3
+  token_env: "GITHUB_TOKEN"          # export GITHUB_TOKEN=your_pat_here
+  org: "your-org-name"               # GitHub org or enterprise org name
+
+# List all 70 team repos here — or use org-wide scanning (set scan_all_repos: true)
+repos:
+  scan_all_repos: true               # If true, auto-discovers all repos in the org
+  include_archived: false
+  # Optional explicit list (used if scan_all_repos is false):
+  explicit_list:
+    - team-a/repo-name
+    - team-b/repo-name
+
+# Team lead mapping: repo_name -> email
+# Used for auto-alerts. Add all 70 teams here.
+team_leads:
+  repo-name-1: "teamlead1@company.com"
+  repo-name-2: "teamlead2@company.com"
+  # You can also use a wildcard fallback:
+  default_lead: "devops-champion@company.com"
+
+# Git hygiene thresholds (all enforced by the checker)
+hygiene:
+  max_branch_age_days: 2             # Branches older than this are flagged
+  max_pr_lines_changed: 400          # PRs larger than this are flagged
+  max_pr_review_hours: 4             # PRs open without review beyond this are flagged
+  max_stale_flag_days: 90            # Feature flags older than this are flagged (if tracked)
+  required_commit_pattern: "^(feat|fix|chore|docs|refactor|test|ci)(\\(.*\\))?: .{10,}"
+  protected_branches:
+    - main
+    - master
+    - release/*
+  allow_direct_push_to_main: false
+
+# Email / alerting settings
+alerts:
+  email:
+    enabled: true
+    smtp_host: "smtp.company.com"
+    smtp_port: 587
+    smtp_user_env: "SMTP_USER"       # export SMTP_USER=your@email.com
+    smtp_pass_env: "SMTP_PASS"
+    from_address: "devops-bot@company.com"
+    cc_champion: "devops-champion@company.com"  # Always CC you
+  slack:
+    enabled: false                   # Set true if you want Slack alerts too
+    webhook_url_env: "SLACK_WEBHOOK_URL"
+
+# Reporting
+reporting:
+  output_dir: "./reports"
+  weekly_report_day: "friday"        # Day to auto-generate weekly report
+  leaderboard_top_n: 10
+
+# Scheduling (used by scheduler.py)
+schedule:
+  hygiene_check_cron: "0 9 * * 1-5"     # Every weekday at 9am
+  weekly_report_cron: "0 8 * * 5"       # Every Friday at 8am
+  alert_cooldown_hours: 24              # Don't re-alert same violation within 24h

@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevOps Automation Suite — Design Document</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+
+  :root {
+    --navy: #0f1e35;
+    --blue: #1a56db;
+    --blue-mid: #2563eb;
+    --blue-light: #dbeafe;
+    --cyan: #06b6d4;
+    --green: #059669;
+    --green-light: #d1fae5;
+    --orange: #ea580c;
+    --orange-light: #ffedd5;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --yellow: #d97706;
+    --yellow-light: #fef3c7;
+    --grey: #64748b;
+    --grey-light: #f1f5f9;
+    --white: #ffffff;
+    --border: #e2e8f0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: #0a0f1a;
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10,15,26,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0 40px;
+    height: 56px;
+    display: flex; align-items: center; gap: 32px;
+  }
+  .nav-brand { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #06b6d4; font-weight: 600; }
+  nav a { font-size: 13px; color: #94a3b8; text-decoration: none; transition: color 0.2s; }
+  nav a:hover { color: #e2e8f0; }
+
+  /* ── Layout ── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 80px 40px 80px; }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #0f1e35 0%, #0a1628 50%, #071020 100%);
+    border: 1px solid rgba(6,182,212,0.2);
+    border-radius: 16px;
+    padding: 60px;
+    margin-bottom: 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -50%; right: -20%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-tag { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #06b6d4; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px; }
+  .hero h1 { font-size: 40px; font-weight: 700; color: #f8fafc; line-height: 1.15; margin-bottom: 16px; }
+  .hero h1 span { color: #06b6d4; }
+  .hero-sub { font-size: 16px; color: #94a3b8; line-height: 1.6; max-width: 640px; }
+  .hero-meta { display: flex; gap: 32px; margin-top: 32px; }
+  .hero-meta-item { }
+  .hero-meta-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+  .hero-meta-value { font-size: 14px; color: #94a3b8; margin-top: 4px; font-family: 'IBM Plex Mono', monospace; }
+
+  /* ── Section headers ── */
+  .section { margin-bottom: 64px; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #06b6d4; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px; }
+  .section h2 { font-size: 28px; font-weight: 700; color: #f8fafc; margin-bottom: 8px; }
+  .section-desc { font-size: 15px; color: #64748b; margin-bottom: 32px; line-height: 1.6; }
+  h3 { font-size: 17px; font-weight: 600; color: #e2e8f0; margin-bottom: 12px; }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); margin: 48px 0; }
+
+  /* ── File cards ── */
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .file-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .file-card:hover { border-color: rgba(6,182,212,0.3); background: rgba(6,182,212,0.04); }
+  .file-card-icon { font-size: 24px; margin-bottom: 12px; }
+  .file-card-name { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #06b6d4; font-weight: 600; margin-bottom: 6px; }
+  .file-card-role { font-size: 13px; color: #64748b; margin-bottom: 12px; font-weight: 600; }
+  .file-card-desc { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+  .file-card-deps { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .dep-tag { font-size: 11px; font-family: 'IBM Plex Mono', monospace; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 2px 8px; color: #94a3b8; }
+
+  /* ── Actor diagram ── */
+  .actor-diagram {
+    background: rgba(15,30,53,0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 40px;
+    margin-bottom: 32px;
+  }
+
+  .actor-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: 0;
+    position: relative;
+  }
+
+  .actor-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 120px;
+  }
+
+  .actor-lifeline-header {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+    width: 110px;
+    margin-bottom: 0;
+  }
+  .actor-icon { font-size: 20px; margin-bottom: 4px; }
+  .actor-name { font-size: 11px; font-weight: 600; color: #e2e8f0; }
+  .actor-type { font-size: 10px; color: #64748b; margin-top: 2px; }
+
+  /* Sequence diagram via SVG */
+  .sequence-svg-wrap { overflow-x: auto; }
+  svg.seq { font-family: 'IBM Plex Sans', sans-serif; }
+
+  /* ── Flow diagram ── */
+  .flow-wrap { overflow-x: auto; padding: 8px 0; }
+  svg.flow { display: block; margin: 0 auto; }
+
+  /* ── Checks table ── */
+  .checks-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .checks-table th { background: rgba(255,255,255,0.05); color: #94a3b8; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .checks-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; vertical-align: top; }
+  .checks-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+  .badge-critical { background: rgba(220,38,38,0.15); color: #f87171; border: 1px solid rgba(220,38,38,0.2); }
+  .badge-warning  { background: rgba(217,119,6,0.15);  color: #fbbf24; border: 1px solid rgba(217,119,6,0.2); }
+  .badge-info     { background: rgba(6,182,212,0.15);  color: #22d3ee; border: 1px solid rgba(6,182,212,0.2); }
+
+  /* ── Data flow boxes ── */
+  .data-flow { display: flex; gap: 0; align-items: stretch; flex-wrap: wrap; }
+  .df-node {
+    flex: 1; min-width: 160px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .df-arrow {
+    display: flex; align-items: center; padding: 0 8px;
+    color: #334155; font-size: 20px;
+  }
+  .df-node-title { font-size: 12px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; font-family: 'IBM Plex Mono', monospace; }
+  .df-node-items { font-size: 12px; color: #64748b; line-height: 1.8; }
+
+  /* ── Code block ── */
+  .code-block {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    padding: 20px 24px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+  .code-block .kw { color: #06b6d4; }
+  .code-block .str { color: #86efac; }
+  .code-block .comment { color: #334155; }
+
+  /* ── Info box ── */
+  .info-box {
+    background: rgba(6,182,212,0.06);
+    border: 1px solid rgba(6,182,212,0.2);
+    border-radius: 10px;
+    padding: 20px 24px;
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.7;
+    margin-bottom: 24px;
+  }
+  .info-box strong { color: #22d3ee; }
+
+  /* ── Score deduction table ── */
+  .score-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .score-cell { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 8px; padding: 16px; text-align: center; }
+  .score-cell .val { font-size: 28px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; margin-bottom: 4px; }
+  .score-cell .lbl { font-size: 12px; color: #64748b; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">// devops-automation</span>
+  <a href="#overview">Overview</a>
+  <a href="#actors">Actors</a>
+  <a href="#sequence">Sequence</a>
+  <a href="#flow">Flow</a>
+  <a href="#checks">Checks</a>
+  <a href="#data">Data</a>
+  <a href="#tests">Tests</a>
+</nav>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">Design Document · v1.0</div>
+    <h1>DevOps Automation Suite<br><span>Architecture & Workflow</span></h1>
+    <p class="hero-sub">Git hygiene enforcement, auto-alerting, and weekly leaderboard reporting for 70 GitHub Enterprise teams. This document describes how the system's components interact, who the actors are, and how data flows from scan to alert.</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="hero-meta-label">Platform</div><div class="hero-meta-value">GitHub Enterprise (on-prem)</div></div>
+      <div class="hero-meta-item"><div class="hero-meta-label">Language</div><div class="hero-meta-value">Python 3.11+</div></div>
+      <div class="hero-meta-item"><div class="hero-meta-label">Teams</div><div class="hero-meta-value">70 repos · 1 org</div></div>
+      <div class="hero-meta-item"><div class="hero-meta-label">Schedule</div><div class="hero-meta-value">Weekdays 9am + Friday 8am</div></div>
+    </div>
+  </div>
+
+  <!-- FILE OVERVIEW -->
+  <div class="section" id="overview">
+    <div class="section-label">Section 01</div>
+    <h2>Component Overview</h2>
+    <p class="section-desc">Six Python modules, one config file, one test suite. Each module has a single responsibility.</p>
+
+    <div class="file-grid">
+      <div class="file-card">
+        <div class="file-card-icon">⚙️</div>
+        <div class="file-card-name">settings.yaml</div>
+        <div class="file-card-role">Configuration</div>
+        <div class="file-card-desc">Single source of truth. Defines GitHub URL, org name, team lead emails, all hygiene thresholds, SMTP settings, and cron schedules. No secrets stored here — tokens come from env vars.</div>
+      </div>
+      <div class="file-card">
+        <div class="file-card-icon">🔌</div>
+        <div class="file-card-name">github_client.py</div>
+        <div class="file-card-role">GitHub API Layer</div>
+        <div class="file-card-desc">Thin REST client for GitHub Enterprise. Handles auth, automatic pagination (100 items/page), rate limit back-off with exponential retry, and timeout management.</div>
+        <div class="file-card-deps"><span class="dep-tag">requests</span><span class="dep-tag">urllib3</span></div>
+      </div>
+      <div class="file-card">
+        <div class="file-card-icon">🔍</div>
+        <div class="file-card-name">hygiene_checker.py</div>
+        <div class="file-card-role">Core Check Engine</div>
+        <div class="file-card-desc">Runs 6 check types per repo. Returns structured Violation objects with severity, detail, and metadata. Saves results to reports/latest_hygiene.json. Exit code 1 if critical violations found.</div>
+        <div class="file-card-deps"><span class="dep-tag">github_client</span><span class="dep-tag">PyYAML</span></div>
+      </div>
+      <div class="file-card">
+        <div class="file-card-icon">📬</div>
+        <div class="file-card-name">alerter.py</div>
+        <div class="file-card-role">Alert Dispatcher</div>
+        <div class="file-card-desc">Reads hygiene JSON, routes violations to the correct team lead email, applies 24h cooldown (SQLite-backed), builds styled HTML emails, sends via SMTP. Champion always CC'd.</div>
+        <div class="file-card-deps"><span class="dep-tag">sqlite3</span><span class="dep-tag">smtplib</span></div>
+      </div>
+      <div class="file-card">
+        <div class="file-card-icon">📊</div>
+        <div class="file-card-name">reporter.py</div>
+        <div class="file-card-role">Leaderboard Generator</div>
+        <div class="file-card-desc">Collects release frequency and LTFD per repo, merges hygiene scores, computes composite rank, and renders a full HTML leaderboard. Run every Friday. Output archived by date.</div>
+        <div class="file-card-deps"><span class="dep-tag">github_client</span><span class="dep-tag">PyYAML</span></div>
+      </div>
+      <div class="file-card">
+        <div class="file-card-icon">🕐</div>
+        <div class="file-card-name">scheduler.py</div>
+        <div class="file-card-role">Orchestrator</div>
+        <div class="file-card-desc">Ties all components together. Runs hygiene+alert pipeline on weekdays at 9am, weekly report on Fridays. Can run as a persistent process or be triggered by Jenkins/cron.</div>
+        <div class="file-card-deps"><span class="dep-tag">schedule</span><span class="dep-tag">subprocess</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ACTOR DIAGRAM -->
+  <div class="section" id="actors">
+    <div class="section-label">Section 02</div>
+    <h2>Actor Diagram</h2>
+    <p class="section-desc">Who interacts with the system, and what roles they play.</p>
+
+    <div class="actor-diagram">
+      <div class="sequence-svg-wrap">
+        <svg class="seq" width="1020" height="420" viewBox="0 0 1020 420" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#06b6d4"/>
+            </marker>
+            <marker id="arr-grey" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#334155"/>
+            </marker>
+            <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#059669"/>
+            </marker>
+          </defs>
+
+          <!-- Actor boxes -->
+          <!-- DevOps Champion -->
+          <rect x="20" y="20" width="130" height="70" rx="10" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+          <text x="85" y="48" text-anchor="middle" font-size="18">👤</text>
+          <text x="85" y="66" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">DevOps</text>
+          <text x="85" y="80" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Champion</text>
+
+          <!-- Scheduler -->
+          <rect x="195" y="20" width="130" height="70" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+          <text x="260" y="48" text-anchor="middle" font-size="18">🕐</text>
+          <text x="260" y="66" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Scheduler</text>
+          <text x="260" y="80" text-anchor="middle" font-size="11" fill="#64748b">(automated)</text>
+
+          <!-- Hygiene Checker -->
+          <rect x="370" y="20" width="130" height="70" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+          <text x="435" y="48" text-anchor="middle" font-size="18">🔍</text>
+          <text x="435" y="66" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Hygiene</text>
+          <text x="435" y="80" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Checker</text>
+
+          <!-- GitHub Enterprise -->
+          <rect x="545" y="20" width="130" height="70" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+          <text x="610" y="48" text-anchor="middle" font-size="18">🐙</text>
+          <text x="610" y="66" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">GitHub</text>
+          <text x="610" y="80" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Enterprise</text>
+
+          <!-- Alerter -->
+          <rect x="720" y="20" width="130" height="70" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+          <text x="785" y="48" text-anchor="middle" font-size="18">📬</text>
+          <text x="785" y="66" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Alerter</text>
+          <text x="785" y="80" text-anchor="middle" font-size="11" fill="#64748b">+ Cooldown DB</text>
+
+          <!-- Team Leads -->
+          <rect x="895" y="20" width="110" height="70" rx="10" fill="rgba(5,150,105,0.1)" stroke="#059669" stroke-width="1.5"/>
+          <text x="950" y="48" text-anchor="middle" font-size="18">👥</text>
+          <text x="950" y="66" text-anchor="middle" font-size="12" fill="#e2e8f0" font-weight="600">Team Leads</text>
+          <text x="950" y="80" text-anchor="middle" font-size="11" fill="#64748b">(70 teams)</text>
+
+          <!-- Lifelines -->
+          <line x1="85" y1="90" x2="85" y2="410" stroke="rgba(6,182,212,0.3)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="260" y1="90" x2="260" y2="410" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="435" y1="90" x2="435" y2="410" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="610" y1="90" x2="610" y2="410" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="785" y1="90" x2="785" y2="410" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4"/>
+          <line x1="950" y1="90" x2="950" y2="410" stroke="rgba(5,150,105,0.3)" stroke-width="1" stroke-dasharray="4,4"/>
+
+          <!-- Interaction 1: Champion configures -->
+          <line x1="85" y1="120" x2="248" y2="120" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#arr)"/>
+          <text x="167" y="115" text-anchor="middle" font-size="11" fill="#06b6d4">configure settings.yaml</text>
+
+          <!-- Interaction 2: Cron triggers scheduler -->
+          <rect x="230" y="138" width="60" height="22" rx="4" fill="rgba(255,255,255,0.05)"/>
+          <text x="260" y="153" text-anchor="middle" font-size="10" fill="#64748b">cron 9am</text>
+
+          <!-- Interaction 3: Scheduler → Checker -->
+          <line x1="260" y1="172" x2="423" y2="172" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr-grey)"/>
+          <text x="341" y="167" text-anchor="middle" font-size="11" fill="#94a3b8">spawn hygiene_checker.py</text>
+
+          <!-- Interaction 4: Checker → GHE (branches) -->
+          <line x1="435" y1="196" x2="598" y2="196" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr-grey)"/>
+          <text x="516" y="191" text-anchor="middle" font-size="11" fill="#94a3b8">GET /branches, /pulls, /commits</text>
+
+          <!-- Interaction 5: GHE → Checker (response) -->
+          <line x1="598" y1="216" x2="437" y2="216" stroke="#94a3b8" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-grey)"/>
+          <text x="516" y="212" text-anchor="middle" font-size="10" fill="#475569">JSON (paginated)</text>
+
+          <!-- Interaction 6: Checker saves JSON -->
+          <rect x="405" y="228" width="60" height="22" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)"/>
+          <text x="435" y="243" text-anchor="middle" font-size="10" fill="#64748b">save JSON</text>
+
+          <!-- Interaction 7: Scheduler → Alerter -->
+          <line x1="260" y1="268" x2="773" y2="268" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr-grey)"/>
+          <text x="516" y="263" text-anchor="middle" font-size="11" fill="#94a3b8">spawn alerter.py</text>
+
+          <!-- Interaction 8: Alerter reads JSON -->
+          <line x1="773" y1="288" x2="437" y2="288" stroke="#94a3b8" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-grey)"/>
+          <text x="605" y="284" text-anchor="middle" font-size="10" fill="#475569">read latest_hygiene.json</text>
+
+          <!-- Interaction 9: Alerter checks cooldown -->
+          <rect x="755" y="298" width="60" height="22" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)"/>
+          <text x="785" y="313" text-anchor="middle" font-size="10" fill="#64748b">check DB</text>
+
+          <!-- Interaction 10: Alerter → Team Lead -->
+          <line x1="785" y1="332" x2="938" y2="332" stroke="#059669" stroke-width="1.5" marker-end="url(#arr-green)"/>
+          <text x="862" y="326" text-anchor="middle" font-size="11" fill="#059669">HTML email per team</text>
+
+          <!-- Interaction 11: Champion CC'd -->
+          <line x1="785" y1="352" x2="98" y2="352" stroke="#06b6d4" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+          <text x="441" y="347" text-anchor="middle" font-size="10" fill="#06b6d4">CC: champion (all alerts)</text>
+
+          <!-- Friday report label -->
+          <rect x="220" y="372" width="80" height="22" rx="4" fill="rgba(255,255,255,0.05)"/>
+          <text x="260" y="387" text-anchor="middle" font-size="10" fill="#64748b">Friday 8am</text>
+
+          <!-- Reporter runs -->
+          <line x1="260" y1="400" x2="423" y2="400" stroke="#d97706" stroke-width="1.5" marker-end="url(#arr-grey)"/>
+          <text x="341" y="395" text-anchor="middle" font-size="11" fill="#d97706">generate weekly HTML report</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SEQUENCE / WORKFLOW -->
+  <div class="section" id="sequence">
+    <div class="section-label">Section 03</div>
+    <h2>Trigger Sequence</h2>
+    <p class="section-desc">The two automated pipelines that run on schedule.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:32px;">
+      <!-- Pipeline 1 -->
+      <div style="background:rgba(15,30,53,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:28px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#06b6d4; margin-bottom:12px; letter-spacing:2px;">PIPELINE 1 — DAILY HYGIENE</div>
+        <div style="font-size:13px; color:#64748b; margin-bottom:20px;">Weekdays at 09:00 (cron: 0 9 * * 1-5)</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">1️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">scheduler.py triggers</div><div style="font-size:11px; color:#64748b;">Reads cron config, fires at 9am</div></div>
+          </div>
+          <div style="padding:4px 0; padding-left:24px; color:#334155; font-size:18px;">↓</div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">2️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">hygiene_checker.py runs</div><div style="font-size:11px; color:#64748b;">Scans all 70 repos via GHE API</div></div>
+          </div>
+          <div style="padding:4px 0; padding-left:24px; color:#334155; font-size:18px;">↓</div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">3️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">Violations saved to JSON</div><div style="font-size:11px; color:#64748b;">reports/latest_hygiene.json</div></div>
+          </div>
+          <div style="padding:4px 0; padding-left:24px; color:#334155; font-size:18px;">↓</div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">4️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">alerter.py dispatches emails</div><div style="font-size:11px; color:#64748b;">Per-team, cooldown-gated, CC champion</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pipeline 2 -->
+      <div style="background:rgba(15,30,53,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:28px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:#d97706; margin-bottom:12px; letter-spacing:2px;">PIPELINE 2 — FRIDAY REPORT</div>
+        <div style="font-size:13px; color:#64748b; margin-bottom:20px;">Every Friday at 08:00 (cron: 0 8 * * 5)</div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">1️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">scheduler.py triggers</div><div style="font-size:11px; color:#64748b;">Friday-only condition met</div></div>
+          </div>
+          <div style="padding:4px 0; padding-left:24px; color:#334155; font-size:18px;">↓</div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">2️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">reporter.py collects metrics</div><div style="font-size:11px; color:#64748b;">Deployments, releases, LTFD, hygiene</div></div>
+          </div>
+          <div style="padding:4px 0; padding-left:24px; color:#334155; font-size:18px;">↓</div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">3️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">Composite scores computed</div><div style="font-size:11px; color:#64748b;">60% release freq + 40% hygiene</div></div>
+          </div>
+          <div style="padding:4px 0; padding-left:24px; color:#334155; font-size:18px;">↓</div>
+          <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-size:16px;">4️⃣</span>
+            <div><div style="font-size:13px; color:#e2e8f0;">HTML leaderboard published</div><div style="font-size:11px; color:#64748b;">Archived by date + latest symlink</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- FLOW DIAGRAM -->
+  <div class="section" id="flow">
+    <div class="section-label">Section 04</div>
+    <h2>Hygiene Check Flow</h2>
+    <p class="section-desc">Decision flow inside hygiene_checker.py for each repo — from discovery to violation recording.</p>
+
+    <div class="flow-wrap">
+      <svg class="flow" width="900" height="760" viewBox="0 0 900 760" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="farr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker>
+          <marker id="farr-y" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#d97706"/></marker>
+          <marker id="farr-r" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#dc2626"/></marker>
+          <marker id="farr-g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#059669"/></marker>
+        </defs>
+
+        <style>
+          .fnode { font-family: 'IBM Plex Sans', sans-serif; }
+          .flabel { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; fill: #94a3b8; }
+          .fdecision { font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; fill: #64748b; }
+        </style>
+
+        <!-- START -->
+        <ellipse cx="450" cy="36" rx="80" ry="24" fill="rgba(6,182,212,0.15)" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="450" y="41" text-anchor="middle" class="fnode" font-size="13" fill="#22d3ee" font-weight="600">START</text>
+
+        <line x1="450" y1="60" x2="450" y2="84" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+
+        <!-- Discover repos -->
+        <rect x="310" y="85" width="280" height="44" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+        <text x="450" y="111" text-anchor="middle" class="fnode" font-size="13" fill="#e2e8f0">Discover repos (scan_all_repos or explicit list)</text>
+
+        <line x1="450" y1="129" x2="450" y2="153" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+
+        <!-- For each repo diamond -->
+        <polygon points="450,154 570,190 450,226 330,190" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="450" y="187" text-anchor="middle" class="fnode" font-size="12" fill="#22d3ee">More repos</text>
+        <text x="450" y="201" text-anchor="middle" class="fnode" font-size="12" fill="#22d3ee">to check?</text>
+
+        <!-- Yes → down -->
+        <line x1="450" y1="226" x2="450" y2="252" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+        <text x="458" y="243" class="fdecision">YES</text>
+
+        <!-- No → right to end -->
+        <line x1="570" y1="190" x2="760" y2="190" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+        <text x="660" y="183" class="fdecision">NO</text>
+        <rect x="760" y="170" width="110" height="40" rx="8" fill="rgba(5,150,105,0.15)" stroke="#059669" stroke-width="1.5"/>
+        <text x="815" y="195" text-anchor="middle" class="fnode" font-size="12" fill="#34d399">Save JSON</text>
+
+        <!-- Call GHE API -->
+        <rect x="300" y="252" width="300" height="44" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+        <text x="450" y="278" text-anchor="middle" class="fnode" font-size="13" fill="#e2e8f0">Call GitHub Enterprise API</text>
+
+        <!-- API error diamond -->
+        <line x1="450" y1="296" x2="450" y2="320" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+        <polygon points="450,320 540,348 450,376 360,348" fill="rgba(220,38,38,0.08)" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="450" y="345" text-anchor="middle" class="fnode" font-size="12" fill="#f87171">API</text>
+        <text x="450" y="359" text-anchor="middle" class="fnode" font-size="12" fill="#f87171">Error?</text>
+
+        <!-- Error YES → right -->
+        <line x1="540" y1="348" x2="660" y2="348" stroke="#dc2626" stroke-width="1.5" marker-end="url(#farr-r)"/>
+        <text x="595" y="340" class="fdecision" fill="#dc2626">YES</text>
+        <rect x="660" y="328" width="130" height="40" rx="8" fill="rgba(220,38,38,0.1)" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="725" y="353" text-anchor="middle" class="fnode" font-size="12" fill="#f87171">Log api_error violation</text>
+        <!-- Loop back up -->
+        <line x1="725" y1="328" x2="725" y2="190" stroke="#dc2626" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#farr-r)"/>
+
+        <!-- No → down -->
+        <line x1="450" y1="376" x2="450" y2="400" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+        <text x="458" y="392" class="fdecision">NO</text>
+
+        <!-- Run 6 checks box -->
+        <rect x="280" y="400" width="340" height="54" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="450" y="424" text-anchor="middle" class="fnode" font-size="13" fill="#22d3ee" font-weight="600">Run 6 hygiene checks in parallel</text>
+        <text x="450" y="442" text-anchor="middle" class="fnode" font-size="11" fill="#64748b">branch age · PR size · review SLA · commit msg · protection · push</text>
+
+        <line x1="450" y1="454" x2="450" y2="478" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+
+        <!-- Violations found diamond -->
+        <polygon points="450,478 560,512 450,546 340,512" fill="rgba(217,119,6,0.08)" stroke="#d97706" stroke-width="1.5"/>
+        <text x="450" y="509" text-anchor="middle" class="fnode" font-size="12" fill="#fbbf24">Violations</text>
+        <text x="450" y="523" text-anchor="middle" class="fnode" font-size="12" fill="#fbbf24">found?</text>
+
+        <!-- No → down -->
+        <text x="340" y="525" text-anchor="end" class="fdecision">NO</text>
+        <line x1="340" y1="512" x2="220" y2="512" stroke="#059669" stroke-width="1.5" marker-end="url(#farr-g)"/>
+        <rect x="80" y="492" width="140" height="40" rx="8" fill="rgba(5,150,105,0.1)" stroke="#059669" stroke-width="1.5"/>
+        <text x="150" y="517" text-anchor="middle" class="fnode" font-size="12" fill="#34d399">Score = 100 ✅</text>
+        <!-- Loop back -->
+        <line x1="150" y1="492" x2="150" y2="190" stroke="#059669" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#farr-g)"/>
+        <line x1="150" y1="190" x2="330" y2="190" stroke="#059669" stroke-width="1" stroke-dasharray="4,3"/>
+
+        <!-- Yes → down -->
+        <line x1="450" y1="546" x2="450" y2="572" stroke="#d97706" stroke-width="1.5" marker-end="url(#farr-y)"/>
+        <text x="458" y="563" class="fdecision">YES</text>
+
+        <!-- Severity diamond -->
+        <polygon points="450,572 560,606 450,640 340,606" fill="rgba(220,38,38,0.08)" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="450" y="603" text-anchor="middle" class="fnode" font-size="12" fill="#f87171">Severity</text>
+        <text x="450" y="617" text-anchor="middle" class="fnode" font-size="12" fill="#f87171">level?</text>
+
+        <!-- Critical -->
+        <text x="558" y="618" class="fdecision" fill="#dc2626">CRITICAL</text>
+        <line x1="560" y1="606" x2="700" y2="606" stroke="#dc2626" stroke-width="1.5" marker-end="url(#farr-r)"/>
+        <rect x="700" y="586" width="160" height="40" rx="8" fill="rgba(220,38,38,0.12)" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="780" y="611" text-anchor="middle" class="fnode" font-size="12" fill="#f87171">Score −20 · passed=False</text>
+
+        <!-- Warning -->
+        <text x="458" y="655" class="fdecision" fill="#d97706">WARNING</text>
+        <line x1="450" y1="640" x2="450" y2="666" stroke="#d97706" stroke-width="1.5" marker-end="url(#farr-y)"/>
+        <rect x="310" y="666" width="280" height="40" rx="8" fill="rgba(217,119,6,0.1)" stroke="#d97706" stroke-width="1.5"/>
+        <text x="450" y="691" text-anchor="middle" class="fnode" font-size="12" fill="#fbbf24">Score −10 · passed=True (warn only)</text>
+
+        <!-- Both merge to next repo -->
+        <line x1="700" y1="606" x2="700" y2="730" stroke="#475569" stroke-width="1" stroke-dasharray="4,3"/>
+        <line x1="450" y1="706" x2="450" y2="730" stroke="#475569" stroke-width="1.5" marker-end="url(#farr)"/>
+        <line x1="700" y1="730" x2="452" y2="730" stroke="#475569" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#farr)"/>
+
+        <rect x="320" y="730" width="260" height="24" rx="6" fill="rgba(255,255,255,0.03)"/>
+        <text x="450" y="746" text-anchor="middle" class="fnode" font-size="12" fill="#94a3b8">→ next repo (loop back to decision)</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- CHECKS DETAIL -->
+  <div class="section" id="checks">
+    <div class="section-label">Section 05</div>
+    <h2>All Hygiene Checks</h2>
+    <p class="section-desc">Every check, its trigger condition, severity, score impact, and recommended action.</p>
+
+    <table class="checks-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Check Name</th><th>Trigger Condition</th><th>Severity</th><th>Score Impact</th><th>Recommended Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:#94a3b8; font-family:'IBM Plex Mono',monospace;">01</td>
+          <td style="color:#e2e8f0; font-weight:600;">Stale Branch</td>
+          <td>Branch last commit &gt; 2 days ago (non-protected)</td>
+          <td><span class="badge badge-warning">WARNING</span><br><span style="font-size:10px;color:#64748b;margin-top:4px;display:block">&gt;6 days → CRITICAL</span></td>
+          <td>−10 / −20</td>
+          <td>Merge or delete the branch. Use feature flags for incomplete work instead of long-lived branches.</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; font-family:'IBM Plex Mono',monospace;">02</td>
+          <td style="color:#e2e8f0; font-weight:600;">Oversized PR</td>
+          <td>PR total lines changed &gt; 400 (additions + deletions)</td>
+          <td><span class="badge badge-critical">CRITICAL</span></td>
+          <td>−20</td>
+          <td>Split into smaller PRs. Use feature flags to merge partial work safely. Refactor is not an excuse for a big PR.</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; font-family:'IBM Plex Mono',monospace;">03</td>
+          <td style="color:#e2e8f0; font-weight:600;">Unreviewed PR (SLA)</td>
+          <td>PR open for &gt; 4 hours with zero reviews</td>
+          <td><span class="badge badge-warning">WARNING</span><br><span style="font-size:10px;color:#64748b;margin-top:4px;display:block">&gt;12 hours → CRITICAL</span></td>
+          <td>−10 / −20</td>
+          <td>Assign a reviewer immediately. APPROVED, CHANGES_REQUESTED, and COMMENTED all satisfy the SLA.</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; font-family:'IBM Plex Mono',monospace;">04</td>
+          <td style="color:#e2e8f0; font-weight:600;">Commit Message Format</td>
+          <td>Any commit in a PR not matching <code style="font-family:'IBM Plex Mono',monospace;color:#06b6d4;font-size:11px;">type(scope): description</code></td>
+          <td><span class="badge badge-warning">WARNING</span></td>
+          <td>−10</td>
+          <td>Rewrite commit messages. Types: feat|fix|chore|docs|refactor|test|ci. Description min 10 chars.</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; font-family:'IBM Plex Mono',monospace;">05</td>
+          <td style="color:#e2e8f0; font-weight:600;">Missing Branch Protection</td>
+          <td>main or master has no branch protection rules in GitHub</td>
+          <td><span class="badge badge-critical">CRITICAL</span></td>
+          <td>−20</td>
+          <td>Enable branch protection: require PR reviews, require status checks to pass, disallow force-push.</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; font-family:'IBM Plex Mono',monospace;">06</td>
+          <td style="color:#e2e8f0; font-weight:600;">Direct Push to Main</td>
+          <td>PushEvent to main/master within last 7 days (not via PR)</td>
+          <td><span class="badge badge-critical">CRITICAL</span></td>
+          <td>−20</td>
+          <td>Retroactively review the commits pushed. Enable branch protection to prevent future occurrences.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top:24px;">
+      <h3>Score Deduction Summary</h3>
+      <div class="score-grid" style="margin-top:12px;">
+        <div class="score-cell"><div class="val" style="color:#f87171;">−20</div><div class="lbl">Per CRITICAL violation</div></div>
+        <div class="score-cell"><div class="val" style="color:#fbbf24;">−10</div><div class="lbl">Per WARNING violation</div></div>
+        <div class="score-cell"><div class="val" style="color:#34d399;">0</div><div class="lbl">Floor (score never below 0)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- DATA FLOW -->
+  <div class="section" id="data">
+    <div class="section-label">Section 06</div>
+    <h2>Data Flow Between Files</h2>
+    <p class="section-desc">How data moves from GitHub Enterprise through each script to the team lead's inbox.</p>
+
+    <div class="data-flow" style="margin-bottom:32px; flex-wrap:nowrap; overflow-x:auto; gap:0; padding-bottom:8px;">
+      <div class="df-node" style="border-color:rgba(6,182,212,0.3);">
+        <div class="df-node-title" style="color:#06b6d4;">GITHUB ENTERPRISE</div>
+        <div class="df-node-items">
+          /branches<br>
+          /pulls (open)<br>
+          /pulls/{n}/files<br>
+          /pulls/{n}/reviews<br>
+          /pulls/{n}/commits<br>
+          /branches/{b}/protection<br>
+          /events (PushEvent)<br>
+          /deployments<br>
+          /releases
+        </div>
+      </div>
+      <div class="df-arrow">→</div>
+      <div class="df-node">
+        <div class="df-node-title">github_client.py</div>
+        <div class="df-node-items">
+          Authenticates (PAT)<br>
+          Paginates (100/page)<br>
+          Retries on 429/5xx<br>
+          Returns Python dicts
+        </div>
+      </div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:rgba(6,182,212,0.3);">
+        <div class="df-node-title" style="color:#06b6d4;">hygiene_checker.py</div>
+        <div class="df-node-items">
+          Runs 6 check methods<br>
+          Creates Violation objects<br>
+          Deducts score<br>
+          Returns RepoHygieneResult
+        </div>
+      </div>
+      <div class="df-arrow">→</div>
+      <div class="df-node">
+        <div class="df-node-title">latest_hygiene.json</div>
+        <div class="df-node-items">
+          Array of repo results<br>
+          Score per repo<br>
+          Violations with metadata<br>
+          Severity + URLs
+        </div>
+      </div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:rgba(5,150,105,0.3);">
+        <div class="df-node-title" style="color:#34d399;">alerter.py</div>
+        <div class="df-node-items">
+          Reads JSON<br>
+          Checks cooldown DB<br>
+          Resolves team lead email<br>
+          Sends HTML email
+        </div>
+      </div>
+      <div class="df-arrow">→</div>
+      <div class="df-node" style="border-color:rgba(5,150,105,0.3);">
+        <div class="df-node-title" style="color:#34d399;">TEAM LEAD INBOX</div>
+        <div class="df-node-items">
+          Styled HTML email<br>
+          Per-violation detail<br>
+          Direct GitHub links<br>
+          Champion always CC'd
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>Key design decision:</strong> The hygiene checker and alerter are intentionally decoupled via the JSON file. This means you can re-run the alerter on old results, run checks without alerting, or plug in a different alerter (Slack, Teams) without touching the checker.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- TESTS -->
+  <div class="section" id="tests">
+    <div class="section-label">Section 07</div>
+    <h2>Test Suite</h2>
+    <p class="section-desc">70+ tests across 3 test files. All mocked — no real GitHub or SMTP connection required.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:28px;">
+      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:20px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#06b6d4; margin-bottom:8px;">test_hygiene_checker.py</div>
+        <div style="font-size:13px; color:#64748b; line-height:1.8;">
+          RepoHygieneResult scoring<br>
+          Stale branch (7 tests)<br>
+          PR size (6 tests)<br>
+          Review SLA (6 tests)<br>
+          Commit messages (12 tests)<br>
+          Branch protection (3 tests)<br>
+          Direct push (4 tests)<br>
+          Full repo integration (4 tests)
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:20px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#06b6d4; margin-bottom:8px;">test_alerter.py</div>
+        <div style="font-size:13px; color:#64748b; line-height:1.8;">
+          Cooldown DB CRUD (5 tests)<br>
+          Cooldown expiry logic<br>
+          Team lead resolution (4)<br>
+          Email subject building (3)<br>
+          HTML body content (5)<br>
+          Process results flow (7)<br>
+          Dry-run mode<br>
+          Error handling
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:20px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; color:#06b6d4; margin-bottom:8px;">test_github_client.py</div>
+        <div style="font-size:13px; color:#64748b; line-height:1.8;">
+          Auth / init (3 tests)<br>
+          Pagination (4 tests)<br>
+          Rate limit handling (3)<br>
+          Repo listing (2)<br>
+          Branch methods (3)<br>
+          PR methods (4)<br>
+          Deployment filtering (2)<br>
+          Push event filtering (1)
+        </div>
+      </div>
+    </div>
+
+    <h3>Run Commands</h3>
+    <div class="code-block" style="margin-top:12px;">
+<span class="comment"># Install test dependencies</span>
+pip install pytest pytest-cov
+
+<span class="comment"># Run all tests</span>
+pytest tests/ -v
+
+<span class="comment"># Run with coverage report</span>
+pytest tests/ -v --cov=scripts --cov-report=term-missing
+
+<span class="comment"># Run single test file</span>
+pytest tests/test_hygiene_checker.py -v
+
+<span class="comment"># Run only tests matching a keyword</span>
+pytest tests/ -v -k <span class="str">"stale_branch"</span>
+
+<span class="comment"># Run only critical-severity tests</span>
+pytest tests/ -v -k <span class="str">"critical"</span>
+    </div>
+  </div>
+
+  <div style="text-align:center; padding:40px 0 20px; font-size:12px; color:#334155; font-family:'IBM Plex Mono',monospace;">
+    DevOps Automation Suite · Design Document v1.0 · Generated March 2026
+  </div>
+
+</div>
+</body>
+</html>
