@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reference Data DevOps — Signal Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg:#0B1220; --bg-panel:#111B2E; --bg-card:#16223A; --line:#233152;
+    --text:#E7ECF7; --muted:#8492AE; --amber:#F5A623; --green:#3ECF8E; --red:#EF5B5B; --rail:#2A3B5C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ background:var(--bg); color:var(--text); font-family:'Space Grotesk', sans-serif; line-height:1.5; padding-bottom:80px; }
+  .mono{font-family:'JetBrains Mono', monospace;}
+
+  header{ padding:32px 6vw 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; }
+  .eyebrow{ font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--amber); margin-bottom:8px; }
+  h1{ font-size:clamp(28px,4vw,42px); font-weight:700; letter-spacing:-0.02em; }
+  .sub{ color:var(--muted); font-size:14px; margin-top:6px; max-width:560px;}
+  .head-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+  button.action{ background:var(--bg-card); color:var(--text); border:1px solid var(--line); padding:9px 16px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:12px; cursor:pointer; transition:.15s; }
+  button.action:hover{ border-color:var(--amber); color:var(--amber); }
+  button.action.primary{ background:var(--amber); color:#1a1305; border-color:var(--amber); font-weight:600;}
+  button.action.primary:hover{ opacity:.88; color:#1a1305; }
+
+  nav{ position:sticky; top:0; z-index:10; background:rgba(11,18,32,.92); backdrop-filter:blur(8px); display:flex; gap:4px; padding:14px 6vw; border-bottom:1px solid var(--line); overflow-x:auto; }
+  nav a{ color:var(--muted); text-decoration:none; font-size:13px; font-family:'JetBrains Mono',monospace; padding:8px 14px; border-radius:20px; white-space:nowrap; transition:.15s; }
+  nav a:hover, nav a.active{ background:var(--bg-card); color:var(--amber); }
+
+  main{ padding:0 6vw; }
+  section{ padding:44px 0; border-bottom:1px solid var(--line); }
+  section:last-child{ border-bottom:none; }
+
+  .sec-head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; flex-wrap:wrap; gap:12px;}
+  .sec-num{ font-family:'JetBrains Mono',monospace; color:var(--amber); font-size:13px; margin-bottom:4px;}
+  h2{ font-size:26px; font-weight:700; letter-spacing:-0.01em; }
+  h3.sub-h{ font-size:15px; color:var(--muted); font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:.06em; margin:28px 0 12px; }
+  .sec-meta{ color:var(--muted); font-size:13px; text-align:right; }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; margin-bottom:8px;}
+  .card{ background:var(--bg-card); border:1px solid var(--line); border-radius:10px; padding:20px; position:relative; }
+  .card h3{ font-size:15px; margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .badge{ font-family:'JetBrains Mono',monospace; font-size:10px; padding:3px 8px; border-radius:12px; text-transform:uppercase; letter-spacing:.06em; }
+  .badge.on{ background:rgba(62,207,142,.15); color:var(--green); }
+  .badge.watch{ background:rgba(245,166,35,.15); color:var(--amber); }
+  .badge.behind{ background:rgba(239,91,91,.15); color:var(--red); }
+  .card p{ color:var(--muted); font-size:13.5px; }
+  .stat-label{ color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em;}
+  .stat{ font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:600; margin:8px 0 4px; }
+
+  .owner-row{ display:flex; gap:16px; margin-top:16px; flex-wrap:wrap; }
+  .owner{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); background:var(--bg-panel); padding:6px 12px; border-radius:20px; border:1px solid var(--line); }
+
+  [contenteditable="true"]{ outline:1px dashed var(--amber); border-radius:4px; }
+  .edit-hint{ display:none; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--amber); margin-bottom:14px;}
+  body.editing .edit-hint{ display:block; }
+  .add-card{ border:1px dashed var(--rail); display:flex; align-items:center; justify-content:center; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:13px; cursor:pointer; min-height:110px; }
+  .add-card:hover{ border-color:var(--amber); color:var(--amber); }
+  body:not(.editing) .add-card{ display:none; }
+  .del-x{ position:absolute; top:10px; right:10px; color:var(--muted); cursor:pointer; font-size:14px; display:none; }
+  body.editing .del-x{ display:block; }
+  .del-x:hover{ color:var(--red); }
+
+  /* Roadmap timeline columns */
+  .roadmap{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px; }
+  .quarter{ background:var(--bg-panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .quarter-label{ font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--amber); text-transform:uppercase; letter-spacing:.08em; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--line);}
+  .quarter .card{ margin-bottom:10px; padding:14px; }
+  .quarter .add-card{ min-height:60px; font-size:12px; }
+
+  footer{ padding:32px 6vw; color:var(--muted); font-size:12px; text-align:center; }
+
+  #toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--bg-card); border:1px solid var(--amber); color:var(--text); padding:12px 20px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:13px; opacity:0; pointer-events:none; transition:.25s; z-index:50; }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media print{
+    nav, .head-actions, .edit-hint, .add-card, .del-x{ display:none !important; }
+    body{ background:#fff; color:#111; }
+    .card, section{ break-inside:avoid; }
+    * { color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">Reference Data · DevOps Champion Board</div>
+    <h1>Signal Board</h1>
+    <div class="sub">Project deliveries, service-line stats, AI adoption, and the gamification roadmap for Reference Data — one live view, one link, always current.</div>
+  </div>
+  <div class="head-actions">
+    <button class="action" id="editToggle">✎ Edit mode</button>
+    <button class="action" id="exportBtn">⬇ Export data (.csv)</button>
+    <button class="action" id="importBtn">⬆ Import data (.csv)</button>
+    <input type="file" id="importFile" accept=".csv,text/csv" style="display:none;">
+    <button class="action" id="copyBtn">⧉ Copy status for email</button>
+    <button class="action primary" id="printBtn">↓ Download PDF</button>
+  </div>
+</header>
+
+<nav>
+  <a href="#project">01 · Project Deliveries</a>
+  <a href="#refdata">02 · RefData Stats &amp; Adoption</a>
+  <a href="#coi">03 · AI COI</a>
+  <a href="#roadmap">04 · Gamification Roadmap</a>
+  <a href="#hackathon">05 · Hackathon Hyd</a>
+</nav>
+
+<main>
+
+  <!-- 01 PROJECT DELIVERIES -->
+  <section id="project">
+    <div class="sec-head">
+      <div><div class="sec-num">01</div><h2>Project Deliveries</h2></div>
+      <div class="sec-meta">Owned end-to-end · team of 2<br>Dev → SIT → UAT → Pre-Prod → Production</div>
+    </div>
+    <p class="edit-hint">Edit mode on — click any text to change it, or add/remove a card.</p>
+    <div class="grid edit-grid" id="projectGrid">
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Pillar 1 — Build &amp; CI <span class="badge on">On track</span></h3>
+        <p contenteditable="false">Standard pipeline templates across Python/Java/Node tier-1 images.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Pillar 2 — Compliance Gates <span class="badge watch">Watch</span></h3>
+        <p contenteditable="false">RFC0019 artifact naming, vulnerability scanning at base-image layer.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Pillar 3 — Environment Promotion <span class="badge watch">Watch</span></h3>
+        <p contenteditable="false">Dev/SIT/UAT stable; Pre-Prod promotion gated on approvals.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Pillar 4 — Production Readiness <span class="badge behind">Behind</span></h3>
+        <p contenteditable="false">Cutover checklist and rollback drill pending for two apps.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Pillar 5 — Feature Flags &amp; Canary <span class="badge behind">Behind</span></h3>
+        <p contenteditable="false">Application-layer toggles live; percentage-based traffic bucketing is the open gap.</p>
+      </div>
+      <div class="add-card" data-target="projectGrid" data-title="New pillar" data-desc="Describe this pillar…">+ Add pillar</div>
+    </div>
+    <div class="owner-row">
+      <div class="owner">👤 Delivery owner: Swati</div>
+      <div class="owner">👥 Team: 2 engineers</div>
+    </div>
+  </section>
+
+  <!-- 02 REFDATA STATS & ADOPTION -->
+  <section id="refdata">
+    <div class="sec-head">
+      <div><div class="sec-num">02</div><h2>RefData DevOps — Current Stats &amp; Automation Adoption</h2></div>
+      <div class="sec-meta">50–55 applications · DevOps Champion</div>
+    </div>
+
+    <h3 class="sub-h">Current Stats</h3>
+    <div class="grid edit-grid" id="statsGrid">
+      <div class="card"><span class="del-x">✕</span>
+        <div class="stat-label" contenteditable="false">Release Frequency</div>
+        <div class="stat mono" contenteditable="false">Bottom quartile</div>
+        <p contenteditable="false">2026 target: move off bottom, into top half of service lines.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <div class="stat-label" contenteditable="false">Lead Time to Deploy</div>
+        <div class="stat mono" contenteditable="false">Above target window</div>
+        <p contenteditable="false">Root causes being mapped per app; hackathon stream attacks this directly.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <div class="stat-label" contenteditable="false">Apps Onboarded to Standard Pipeline</div>
+        <div class="stat mono" contenteditable="false">— / 50-55</div>
+        <p contenteditable="false">Data fabric &amp; Mode 2 compliance rollout in progress.</p>
+      </div>
+      <div class="add-card" data-target="statsGrid" data-title="New metric" data-desc="Context / target…" data-stat="true">+ Add stat</div>
+    </div>
+
+    <h3 class="sub-h">Automation Adoption</h3>
+    <div class="grid edit-grid" id="adoptionGrid">
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Data Fabric &amp; Framework Adoption <span class="badge watch">In progress</span></h3>
+        <p contenteditable="false">Rolling standard frameworks out across the service line's apps.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Mode 2 Process Compliance <span class="badge watch">In progress</span></h3>
+        <p contenteditable="false">Aligning apps to Mode 2 delivery standards.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Standard Pipeline Rollout <span class="badge watch">In progress</span></h3>
+        <p contenteditable="false">Tier-1 image pipelines across Python/Java/Node.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Vulnerability Propagation Checks <span class="badge on">Active</span></h3>
+        <p contenteditable="false">Base-image scanning feeding into compliance gates.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">RF / LTTD Breach Escalation <span class="badge behind">Needs attention</span></h3>
+        <p contenteditable="false">Tracking and escalating apps breaching time-frame targets.</p>
+      </div>
+      <div class="add-card" data-target="adoptionGrid" data-title="New adoption track" data-desc="Describe this track…">+ Add track</div>
+    </div>
+  </section>
+
+  <!-- 03 AI COI -->
+  <section id="coi">
+    <div class="sec-head">
+      <div><div class="sec-num">03</div><h2>AI Community of Interest</h2></div>
+      <div class="sec-meta">70+ volunteers · feeds into GCIO metrics</div>
+    </div>
+
+    <h3 class="sub-h">Wave 1 — Done</h3>
+    <div class="grid edit-grid" id="wave1Grid">
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">DPI Gamification Dashboard <span class="badge on">Done</span></h3>
+        <p contenteditable="false">6-pillar scoring engine, leaderboard, admin panel.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">PulseOps Agent <span class="badge on">Done</span></h3>
+        <p contenteditable="false">Detects CI/CD failures, posts fix suggestions to Teams within 60 seconds via RAG/PGVector.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Kick-off &amp; Onboarding <span class="badge on">Done</span></h3>
+        <p contenteditable="false">70+ volunteers onboarded into the 4-week structured programme.</p>
+      </div>
+      <div class="add-card" data-target="wave1Grid" data-title="New Wave 1 topic" data-desc="What was delivered…" data-badge="on" data-badge-text="Done">+ Add topic</div>
+    </div>
+
+    <h3 class="sub-h">Wave 2 — Prep</h3>
+    <div class="grid edit-grid" id="wave2Grid">
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Skills.md Adoption <span class="badge watch">Prep</span></h3>
+        <p contenteditable="false">Moving weekly sessions to a self-serve skills.md format.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Advanced RAG Use Cases <span class="badge watch">Prep</span></h3>
+        <p contenteditable="false">Extending PulseOps-style agents to new failure classes.</p>
+      </div>
+      <div class="add-card" data-target="wave2Grid" data-title="New Wave 2 topic" data-desc="What's being prepped…" data-badge="watch" data-badge-text="Prep">+ Add topic</div>
+    </div>
+  </section>
+
+  <!-- 04 GAMIFICATION ROADMAP -->
+  <section id="roadmap">
+    <div class="sec-head">
+      <div><div class="sec-num">04</div><h2>Gamification Roadmap</h2></div>
+      <div class="sec-meta">Quarterly milestones</div>
+    </div>
+    <p class="edit-hint">Edit mode on — add/remove milestones per quarter.</p>
+    <div class="roadmap">
+      <div class="quarter">
+        <div class="quarter-label">Q2</div>
+        <div class="edit-grid" id="q2Grid">
+          <div class="card"><span class="del-x">✕</span>
+            <h3 contenteditable="false">Dashboard Live <span class="badge on">Done</span></h3>
+            <p contenteditable="false">6-pillar scoring engine launched with leaderboard.</p>
+          </div>
+          <div class="add-card" data-target="q2Grid" data-title="New milestone" data-desc="Describe…" data-badge="on" data-badge-text="Done">+ Add milestone</div>
+        </div>
+      </div>
+      <div class="quarter">
+        <div class="quarter-label">Q3</div>
+        <div class="edit-grid" id="q3Grid">
+          <div class="card"><span class="del-x">✕</span>
+            <h3 contenteditable="false">Achievement Badges <span class="badge watch">Planned</span></h3>
+            <p contenteditable="false">League tiers and badges tied to RF/LTTD improvement.</p>
+          </div>
+          <div class="add-card" data-target="q3Grid" data-title="New milestone" data-desc="Describe…" data-badge="watch" data-badge-text="Planned">+ Add milestone</div>
+        </div>
+      </div>
+      <div class="quarter">
+        <div class="quarter-label">Q4</div>
+        <div class="edit-grid" id="q4Grid">
+          <div class="card"><span class="del-x">✕</span>
+            <h3 contenteditable="false">Cross-Service-Line Rollout <span class="badge watch">Planned</span></h3>
+            <p contenteditable="false">Extend the DPI model beyond Reference Data.</p>
+          </div>
+          <div class="add-card" data-target="q4Grid" data-title="New milestone" data-desc="Describe…" data-badge="watch" data-badge-text="Planned">+ Add milestone</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 HACKATHON HYD -->
+  <section id="hackathon">
+    <div class="sec-head">
+      <div><div class="sec-num">05</div><h2>Hackathon Hyd</h2></div>
+      <div class="sec-meta">13–17 · Theme: Automation &amp; AI</div>
+    </div>
+
+    <h3 class="sub-h">Topics</h3>
+    <div class="grid edit-grid" id="hackTopicsGrid">
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Story 1 — RF Booster <span class="badge watch">Draft</span></h3>
+        <p contenteditable="false">Auto-detect low-frequency releasers and generate a pipeline-setup starter kit.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Story 2 — LTTD Reducer <span class="badge watch">Draft</span></h3>
+        <p contenteditable="false">Bottleneck finder across Dev→Prod stages, ranked by time lost.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Story 3 — DPI Auto-Scorer <span class="badge watch">Draft</span></h3>
+        <p contenteditable="false">Nightly job that scores every app against the 6 pillars automatically.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Story 4 — Pipeline Auto-Setup <span class="badge watch">Draft</span></h3>
+        <p contenteditable="false">One-command onboarding of a new app onto the standard tier-1 pipeline.</p>
+      </div>
+      <div class="add-card" data-target="hackTopicsGrid" data-title="New story" data-desc="Describe this story…">+ Add topic</div>
+    </div>
+
+    <h3 class="sub-h">Members</h3>
+    <div class="grid edit-grid" id="hackMembersGrid">
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Member 1</h3>
+        <p contenteditable="false">Role / story assigned</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Member 2</h3>
+        <p contenteditable="false">Role / story assigned</p>
+      </div>
+      <div class="add-card" data-target="hackMembersGrid" data-title="New member" data-desc="Role / story assigned">+ Add member</div>
+    </div>
+
+    <h3 class="sub-h">Timings &amp; Schedule</h3>
+    <div class="grid edit-grid" id="hackScheduleGrid">
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Day 1 — Kickoff</h3>
+        <p contenteditable="false">Theme reveal, team formation, story assignment.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Mid-point — Check-in</h3>
+        <p contenteditable="false">Progress review, unblock issues.</p>
+      </div>
+      <div class="card"><span class="del-x">✕</span>
+        <h3 contenteditable="false">Day 5 — Demo</h3>
+        <p contenteditable="false">Final demos to leadership.</p>
+      </div>
+      <div class="add-card" data-target="hackScheduleGrid" data-title="New slot" data-desc="Time / activity…">+ Add slot</div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Reference Data DevOps · Signal Board · Last updated <span id="lastUpdated" class="mono"></span> · Export a .csv, edit in Excel, re-import to update.
+</footer>
+
+<div id="toast"></div>
+
+<script>
+  const STORAGE_KEY = 'refdata-signal-board-v2';
+  let editing = false;
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+  function setLastUpdated(d){
+    document.getElementById('lastUpdated').textContent = (d ? new Date(d) : new Date()).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' });
+  }
+  setLastUpdated();
+
+  document.getElementById('editToggle').addEventListener('click', () => {
+    editing = !editing;
+    document.body.classList.toggle('editing', editing);
+    document.getElementById('editToggle').textContent = editing ? '✓ Save & exit edit' : '✎ Edit mode';
+    document.querySelectorAll('.edit-grid [contenteditable], .edit-grid h3, .edit-grid p, .edit-grid .stat-label, .edit-grid .stat').forEach(el => {
+      if (el.closest('.add-card')) return;
+      el.setAttribute('contenteditable', editing ? 'true' : 'false');
+    });
+    if (!editing){ saveBoard(); showToast('Saved on this browser. Export a .csv to keep a durable copy.'); }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('del-x')){
+      if (editing){ e.target.closest('.card').remove(); saveBoard(); }
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    const addBtn = e.target.closest('.add-card');
+    if (addBtn){
+      if (!editing) return;
+      const grid = document.getElementById(addBtn.dataset.target);
+      if (!grid) return;
+      const title = addBtn.dataset.title || 'New item';
+      const desc = addBtn.dataset.desc || 'Describe this item…';
+      const card = document.createElement('div');
+      card.className = 'card';
+      if (addBtn.dataset.stat === 'true'){
+        card.innerHTML = '<span class="del-x">✕</span><div class="stat-label" contenteditable="true">'+title+'</div><div class="stat mono" contenteditable="true">Value</div><p contenteditable="true">'+desc+'</p>';
+      } else if (addBtn.dataset.badge){
+        card.innerHTML = '<span class="del-x">✕</span><h3 contenteditable="true">'+title+' <span class="badge '+addBtn.dataset.badge+'">'+(addBtn.dataset.badgeText||'Draft')+'</span></h3><p contenteditable="true">'+desc+'</p>';
+      } else {
+        card.innerHTML = '<span class="del-x">✕</span><h3 contenteditable="true">'+title+' <span class="badge watch">Draft</span></h3><p contenteditable="true">'+desc+'</p>';
+      }
+      grid.insertBefore(card, addBtn);
+      saveBoard();
+      return;
+    }
+  });
+
+  function buildSnapshot(){
+    const grids = {};
+    document.querySelectorAll('.edit-grid').forEach(g => { grids[g.id] = g.innerHTML; });
+    return { grids, updated: new Date().toISOString() };
+  }
+
+  function applySnapshot(s){
+    Object.keys(s.grids).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = s.grids[id];
+    });
+    if (s.updated) setLastUpdated(s.updated);
+  }
+
+  function saveBoard(){
+    setLastUpdated();
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(buildSnapshot()));
+    } catch(err){ console.error('Save failed', err); showToast('Could not auto-save on this browser — use Export instead.'); }
+  }
+
+  function loadBoard(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) applySnapshot(JSON.parse(raw));
+    } catch(err){ /* no saved board yet — keep defaults */ }
+  }
+  loadBoard();
+
+  const GRID_META = [
+    {id:'projectGrid', label:'Project Deliveries', type:'card'},
+    {id:'statsGrid', label:'RefData Current Stats', type:'stat'},
+    {id:'adoptionGrid', label:'Automation Adoption', type:'card'},
+    {id:'wave1Grid', label:'AI COI Wave 1 (Done)', type:'card'},
+    {id:'wave2Grid', label:'AI COI Wave 2 (Prep)', type:'card'},
+    {id:'q2Grid', label:'Gamification Q2', type:'card'},
+    {id:'q3Grid', label:'Gamification Q3', type:'card'},
+    {id:'q4Grid', label:'Gamification Q4', type:'card'},
+    {id:'hackTopicsGrid', label:'Hackathon Topics', type:'card'},
+    {id:'hackMembersGrid', label:'Hackathon Members', type:'card'},
+    {id:'hackScheduleGrid', label:'Hackathon Schedule', type:'card'}
+  ];
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  function classifyBadge(status){
+    const s = (status||'').toLowerCase().trim();
+    if (!s) return null;
+    if (/done|on track|live|active/.test(s)) return 'on';
+    if (/behind|attention|blocked|risk/.test(s)) return 'behind';
+    return 'watch';
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const rows = [];
+    GRID_META.forEach(meta => {
+      const grid = document.getElementById(meta.id);
+      if (!grid) return;
+      grid.querySelectorAll(':scope > .card').forEach(card => {
+        if (meta.type === 'stat'){
+          const title = card.querySelector('.stat-label')?.textContent.trim() || '';
+          const value = card.querySelector('.stat')?.textContent.trim() || '';
+          const desc = card.querySelector('p')?.textContent.trim() || '';
+          rows.push({ Grid: meta.label, Type:'stat', Title:title, Value:value, Description:desc, Status:'' });
+        } else {
+          const h3 = card.querySelector('h3');
+          const badgeEl = h3 ? h3.querySelector('.badge') : null;
+          const status = badgeEl ? badgeEl.textContent.trim() : '';
+          let title = h3 ? h3.textContent.trim() : '';
+          if (badgeEl) title = title.replace(badgeEl.textContent.trim(), '').trim();
+          const desc = card.querySelector('p')?.textContent.trim() || '';
+          rows.push({ Grid: meta.label, Type:'card', Title:title, Value:'', Description:desc, Status:status });
+        }
+      });
+    });
+    const csv = Papa.unparse(rows);
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    a.href = url;
+    a.download = 'refdata-signal-board-' + stamp + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Exported — open in Excel, edit, then re-import when done.');
+  });
+
+  document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+  });
+  document.getElementById('importFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        try{
+          const rowsByGrid = {};
+          results.data.forEach(row => {
+            const label = (row.Grid || '').trim();
+            if (!label) return;
+            if (!rowsByGrid[label]) rowsByGrid[label] = [];
+            rowsByGrid[label].push(row);
+          });
+          GRID_META.forEach(meta => {
+            const grid = document.getElementById(meta.id);
+            if (!grid) return;
+            const matched = rowsByGrid[meta.label];
+            if (!matched) return; // leave existing cards if this section wasn't in the file
+            grid.querySelectorAll(':scope > .card').forEach(c => c.remove());
+            const addBtn = grid.querySelector('.add-card');
+            matched.forEach(row => {
+              const card = document.createElement('div');
+              card.className = 'card';
+              if (meta.type === 'stat'){
+                card.innerHTML = '<span class="del-x">✕</span><div class="stat-label" contenteditable="false">'+escapeHtml(row.Title)+'</div><div class="stat mono" contenteditable="false">'+escapeHtml(row.Value)+'</div><p contenteditable="false">'+escapeHtml(row.Description)+'</p>';
+              } else {
+                const cls = classifyBadge(row.Status);
+                const badgeHtml = cls ? ' <span class="badge '+cls+'">'+escapeHtml(row.Status)+'</span>' : '';
+                card.innerHTML = '<span class="del-x">✕</span><h3 contenteditable="false">'+escapeHtml(row.Title)+badgeHtml+'</h3><p contenteditable="false">'+escapeHtml(row.Description)+'</p>';
+              }
+              if (addBtn) grid.insertBefore(card, addBtn); else grid.appendChild(card);
+            });
+          });
+          saveBoard();
+          showToast('Imported from ' + file.name + ' — board updated.');
+        } catch(err){ console.error(err); showToast('That file could not be read as board data.'); }
+      },
+      error: () => showToast('Could not parse that CSV file.')
+    });
+    e.target.value = '';
+  });
+
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    const sections = document.querySelectorAll('main section');
+    let text = 'REFERENCE DATA DEVOPS — STATUS UPDATE\n';
+    text += new Date().toLocaleDateString('en-GB', {dateStyle:'long'}) + '\n\n';
+    sections.forEach(sec => {
+      const h2 = sec.querySelector('h2');
+      if (h2) text += '— ' + h2.textContent.toUpperCase() + ' —\n';
+      sec.querySelectorAll('.card h3, .card .stat-label').forEach(h => {
+        text += '  • ' + h.textContent.replace(/\s+/g,' ').trim() + '\n';
+      });
+      text += '\n';
+    });
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Copied — paste into your email to Paul.');
+    }).catch(() => showToast('Could not copy — select text manually.'));
+  });
+
+  const navLinks = document.querySelectorAll('nav a');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting){
+        navLinks.forEach(l => l.classList.remove('active'));
+        const link = document.querySelector('nav a[href="#'+e.target.id+'"]');
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-40% 0px -50% 0px' });
+  document.querySelectorAll('main section').forEach(s => obs.observe(s));
+</script>
+
+</body>
+</html>
